@@ -268,6 +268,14 @@ Image::UniquePtr V4l2CameraDevice::capture()
   }
   buf_stamp = buf_stamp + timestamp_offset_;
 
+  // Create image object
+  auto img = std::make_unique<Image>();
+
+  // Copy over buffer data
+  auto const & buffer = buffers_[buf.index];
+  img->data.resize(cur_data_format_.imageByteSize);
+  std::copy(buffer.start, buffer.start + img->data.size(), img->data.begin());
+
   // Requeue buffer to be reused for new captures
   if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf)) {
     RCLCPP_ERROR(
@@ -277,8 +285,7 @@ Image::UniquePtr V4l2CameraDevice::capture()
     return nullptr;
   }
 
-  // Create image object
-  auto img = std::make_unique<Image>();
+  // Fill in remaining image information
   img->header.stamp = buf_stamp;
   img->width = cur_data_format_.width;
   img->height = cur_data_format_.height;
@@ -292,10 +299,7 @@ Image::UniquePtr V4l2CameraDevice::capture()
   } else {
     RCLCPP_WARN(rclcpp::get_logger("v4l2_camera"), "Current pixel format is not supported yet");
   }
-  img->data.resize(cur_data_format_.imageByteSize);
 
-  auto const & buffer = buffers_[buf.index];
-  std::copy(buffer.start, buffer.start + img->data.size(), img->data.begin());
   return img;
 }
 
