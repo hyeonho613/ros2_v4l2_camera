@@ -72,6 +72,7 @@ def launch_setup(context, *args, **kwargs):
                     "use_sensor_data_qos": LaunchConfiguration("use_sensor_data_qos"),
                     "publish_rate": LaunchConfiguration("publish_rate"),
                     "use_v4l2_buffer_timestamps": LaunchConfiguration("use_v4l2_buffer_timestamps"),
+                    "use_image_transport": LaunchConfiguration("use_image_transport"),
                 },
             ],
             extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
@@ -129,6 +130,8 @@ def generate_launch_description():
                    description='publish frame number per second. value <= 0 means no limitation on publish rate')
     add_launch_arg('use_v4l2_buffer_timestamps', True,
                    description='optional flag to whether use timestamps from v4l2 buffer')
+    add_launch_arg('use_image_transport', True,
+                   description='optional flag to whether launch image_transport node')
 
     return LaunchDescription(
         [
