@@ -129,9 +129,11 @@ def generate_launch_description():
     add_launch_arg('publish_rate', "-1.0",
                    description='publish frame number per second. value <= 0 means no limitation on publish rate')
     add_launch_arg('use_v4l2_buffer_timestamps', True,
-                   description='optional flag to whether use timestamps from v4l2 buffer')
+                   description='flag to use v4l2 buffer timestamps. '
+                   'If true, the image timestamps will be applied from the v4l2 buffer,  '
+                   'otherwise, will be the system time when the buffer is read')
     add_launch_arg('use_image_transport', True,
-                   description='optional flag to whether launch image_transport node')
+                   description='flag to launch image_transport node')
 
     return LaunchDescription(
         [
