@@ -148,8 +148,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         if (use_image_transport_) {
           camera_transport_pub_.publish(*img, *ci);
         } else {
-          image_pub_->publish(*img);
-          info_pub_->publish(*ci);
+          image_pub_->publish(std::move(img));
+          info_pub_->publish(std::move(ci));
         }
       }
     }
