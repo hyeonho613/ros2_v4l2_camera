@@ -177,6 +177,25 @@ private:
       }
     }
 
+    // check the latest update is valid one
+    size_t num_frame_skipped = 0;
+    bool is_valid_observation = true;
+    if (previous_frame_timestamp_) {
+      double stamp = std::chrono::duration<double>(
+          std::chrono::steady_clock::now().time_since_epoch()).count();
+      double delta = stamp - previous_frame_timestamp_.value();
+      double freq_from_prev_tick = 1. / delta;
+      // If the latest update too older than warn_params_ criteria, frame_result fires error
+      if (freq_from_prev_tick < warn_params_.min_frequency) {
+        frame_result.emplace<Error>();
+        is_valid_observation = false;
+        frequency_ = freq_from_prev_tick;
+        auto max_frame_period_s = 1. / warn_params_.min_frequency;
+        // Minimum frames to assume skipped if 'tick' calls occur at 'warn_params_.min_frequency'.
+        num_frame_skipped  = static_cast<size_t>(delta / max_frame_period_s);
+      }
+    }
+
     // If the classify result is same as previous one, count the number of observation
     // Otherwise, update candidate
     if (candidate_state_.index() == frame_result.index()) {  // if result has the same status as candidate
@@ -191,7 +210,8 @@ private:
     // - immediate error report is required and the observed state is error
     // - Or the same state is observed multiple times
     if ((immediate_error_report_ && std::holds_alternative<Error>(candidate_state_)) ||
-        (get_num_observations(candidate_state_) >= num_frame_transition_)) {
+        (is_valid_observation && get_num_observations(candidate_state_) >= num_frame_transition_) ||
+        (!is_valid_observation && num_frame_skipped >= num_frame_transition_)) {
       current_state_ = candidate_state_;
       std::visit([](auto& s) {
         s.num_observations = 1;
@@ -227,6 +247,10 @@ private:
     ss.str("");  // reset contents
     ss << get_num_observations(candidate_state_);
     stat.add("Observed frames", ss.str());
+
+    ss.str("");  // reset contents
+    ss << num_frame_skipped;
+    stat.add("Assumed skipped frames", ss.str());
 
     ss.str("");  // reset contents
     ss << num_frame_transition_;
