@@ -120,6 +120,8 @@ private:
 
   void getCaptureParameters();
 
+  bool getL4TMajorVersion(std::string &version);
+
   // Requests and stores all formats available for this camera
   void listImageFormats();
 

@@ -28,6 +28,7 @@
 #include <utility>
 #include <memory>
 #include <fstream>
+#include <regex>
 
 #include "v4l2_camera/fourcc.hpp"
 
@@ -228,14 +229,45 @@ int64_t V4l2CameraDevice::getTimeOffset()
 
 void V4l2CameraDevice::setTSCOffset()
 {
-  std::ifstream offset_ns_file("/sys/devices/system/clocksource/clocksource0/offset_ns");
-  if (offset_ns_file.good()) {
-    std::string offset;
-    offset_ns_file >> offset;
-    offset_ns_file.close();
-    tsc_offset_ = std::stoull(offset);
+  std::string l4t_major_version;
+  if (!V4l2CameraDevice::getL4TMajorVersion(l4t_major_version)){
+    if (std::stoi(l4t_major_version) >= 36) {
+      // L4T version >= 36      
+      #ifdef __ARM_FEATURE_MRS
+        unsigned long raw_nsec, tsc_ns;
+        unsigned long cycles, frq;
+        struct timespec tp;
+
+        asm volatile("mrs %0, cntfrq_el0" : "=r"(frq));
+        asm volatile("mrs %0, cntvct_el0" : "=r"(cycles));
+        clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
+        tsc_ns = (cycles * 100 / (frq / 10000)) * 1000;
+        raw_nsec = tp.tv_sec * 1000000000 + tp.tv_nsec;
+      
+        tsc_offset_ = llabs(tsc_ns-raw_nsec);    
+      #else
+        RCLCPP_WARN(rclcpp::get_logger("v4l2_camera"), "Could not find the mrs instruction even though it's a Jetson device. The time information may not be normal.");
+        tsc_offset_ = 0;
+      #endif
+
+    }
+    else {
+      // L4T version < 36
+      std::ifstream offset_ns_file("/sys/devices/system/clocksource/clocksource0/offset_ns");
+      if (offset_ns_file.good()) {
+        std::string offset;
+        offset_ns_file >> offset;
+        offset_ns_file.close();
+        tsc_offset_ = std::stoull(offset);
+      }
+      else {
+        // Could not open offset file
+        tsc_offset_ = 0;
+      }    
+    }
   }
   else {
+    // Could not check L4T version
     tsc_offset_ = 0;
   }
 }
@@ -414,6 +446,28 @@ void V4l2CameraDevice::getCaptureParameters()
   }
 
   capture_parm_ = streamParm.parm.capture;
+}
+
+bool V4l2CameraDevice::getL4TMajorVersion(std::string &version)
+{
+  // Open "/etc/nv_tegra_release" file
+  std::ifstream file("/etc/nv_tegra_release");
+  if (!file.is_open()) {
+    return false;
+  }
+
+  // Serch L4T major version
+  std::string line;
+  std::getline(file, line);
+  file.close();
+  std::regex version_regex("# R(\\d+)");
+  std::smatch match;
+  if (!std::regex_search(line, match, version_regex) && match.size() < 2) {
+    return false;
+  }
+
+  version = match[1].str();
+  return true;
 }
 
 void V4l2CameraDevice::listImageFormats()
