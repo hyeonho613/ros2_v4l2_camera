@@ -230,7 +230,7 @@ int64_t V4l2CameraDevice::getTimeOffset()
 void V4l2CameraDevice::setTSCOffset()
 {
   std::string l4t_major_version;
-  if (!V4l2CameraDevice::getL4TMajorVersion(l4t_major_version)){
+  if (V4l2CameraDevice::getL4TMajorVersion(l4t_major_version)){
     if (std::stoi(l4t_major_version) >= 36) {
       // L4T version >= 36      
       #ifdef __ARM_FEATURE_MRS
