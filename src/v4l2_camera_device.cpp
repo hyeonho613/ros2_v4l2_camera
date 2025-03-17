@@ -229,11 +229,11 @@ int64_t V4l2CameraDevice::getTimeOffset()
 
 void V4l2CameraDevice::setTSCOffset()
 {
-  std::string l4t_major_version;
-  if (V4l2CameraDevice::getL4TMajorVersion(l4t_major_version)){
-    if (std::stoi(l4t_major_version) >= 36) {
-      // L4T version >= 36      
-      #ifdef __ARM_FEATURE_MRS
+  #if defined(__arm__) || defined(__aarch64__)
+    std::string l4t_major_version;
+    if (V4l2CameraDevice::getL4TMajorVersion(l4t_major_version)){
+      if (std::stoi(l4t_major_version) >= 36) {
+        // L4T version >= 36      
         unsigned long raw_nsec, tsc_ns;
         unsigned long cycles, frq;
         struct timespec tp;
@@ -243,33 +243,37 @@ void V4l2CameraDevice::setTSCOffset()
         clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
         tsc_ns = (cycles * 100 / (frq / 10000)) * 1000;
         raw_nsec = tp.tv_sec * 1000000000 + tp.tv_nsec;
-      
-        tsc_offset_ = llabs(tsc_ns-raw_nsec);    
-      #else
-        RCLCPP_WARN(rclcpp::get_logger("v4l2_camera"), "Could not find the mrs instruction even though it's a Jetson device. The time information may not be normal.");
-        tsc_offset_ = 0;
-      #endif
-
-    }
-    else {
-      // L4T version < 36
-      std::ifstream offset_ns_file("/sys/devices/system/clocksource/clocksource0/offset_ns");
-      if (offset_ns_file.good()) {
-        std::string offset;
-        offset_ns_file >> offset;
-        offset_ns_file.close();
-        tsc_offset_ = std::stoull(offset);
+        
+        tsc_offset_ = llabs(tsc_ns-raw_nsec);
+        RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "setTSCOffset(): L4T VERSION >= 36 ... OFFSET: %lu", tsc_offset_);
       }
       else {
-        // Could not open offset file
-        tsc_offset_ = 0;
-      }    
+        // L4T version < 36
+        std::ifstream offset_ns_file("/sys/devices/system/clocksource/clocksource0/offset_ns");
+        if (offset_ns_file.good()) {
+          std::string offset;
+          offset_ns_file >> offset;
+          offset_ns_file.close();
+          tsc_offset_ = std::stoull(offset);
+	  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "setTSCOffset(): L4T VERSION < 36 ... OFFSET: %lu", tsc_offset_);
+        }
+        else {
+          // Could not open offset file
+          tsc_offset_ = 0;
+	  RCLCPP_WARN(rclcpp::get_logger("v4l2_camera"), "setTSCOffset(): L4T VERSION < 36 But, could not open offset file. The timestamp information may not be normal ... OFFSET: %lu", tsc_offset_);
+        }    
+      }
     }
-  }
-  else {
-    // Could not check L4T version
+    else {
+      // Could not check L4T version (arm or aarch not L4T environment)
+      tsc_offset_ = 0;
+      RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "setTSCOffset(): arm or aarch64 not L4T environment ... OFFSET: %lu", tsc_offset_);
+    }
+  #else
+    // not arm or aarch environment)
     tsc_offset_ = 0;
-  }
+    RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "setTSCOffset(): not arm or aarch64 environment ... OFFSET: %lu", tsc_offset_);
+  #endif
 }
 
 Image::UniquePtr V4l2CameraDevice::capture()
