@@ -20,6 +20,7 @@
 
 #include <camera_info_manager/camera_info_manager.hpp>
 #include <image_transport/image_transport.hpp>
+#include <diagnostic_updater/diagnostic_updater.hpp>
 
 #include <ostream>
 #include <rclcpp/rclcpp.hpp>

@@ -88,9 +88,24 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   auto timestamp_offset = declare_parameter<int64_t>("timestamp_offset", 0, timestamp_offset_descriptor);
   rclcpp::Duration timestamp_offset_duration = rclcpp::Duration::from_nanoseconds(timestamp_offset);
 
+  // Prepare diagnostics
+  auto hardware_id = declare_parameter<std::string>("hardware_id", "");
+
+  diag_updater_ = std::make_shared<diagnostic_updater::Updater>(this);
+  diag_updater_->setHardwareID(hardware_id.empty() ? "none" : hardware_id);
   camera_ = std::make_shared<V4l2CameraDevice>(device, use_v4l2_buffer_timestamps, timestamp_offset_duration);
 
   if (!camera_->open()) {
+    auto device_node_existance_diag =
+        [this, device](diagnostic_updater::DiagnosticStatusWrapper &stat) {
+          // pass a copy of `device` explicitly because diag_updater_ keep calling this function
+          // in different thread after exit this constructor
+          stat.summaryf(
+              diagnostic_msgs::msg::DiagnosticStatus::ERROR,
+              "%s is unabailable", device.c_str());
+    };
+    this->diag_updater_->add("device node existence", device_node_existance_diag);
+    this->diag_updater_->force_update();
     return;
   }
 
