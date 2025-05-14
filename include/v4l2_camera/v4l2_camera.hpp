@@ -30,6 +30,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <optional>
 
 #include "v4l2_camera/visibility_control.h"
 
@@ -120,6 +121,12 @@ private:
 
   bool publish_next_frame_;
   bool use_image_transport_;
+
+  std::shared_ptr<diagnostic_updater::Updater> diag_updater_;
+  std::optional<TimePerFrame> time_per_frame_;
+  std::optional<double> ok_range_ratio_;
+  std::optional<double> warn_range_ratio_;
+  int num_frames_transition_;
 
 #ifdef ENABLE_CUDA
   // Memory region to communicate with GPU

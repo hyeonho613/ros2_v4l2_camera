@@ -13,9 +13,12 @@
 // limitations under the License.
 
 #include "v4l2_camera/v4l2_camera.hpp"
+#include "v4l2_camera/rate_bound_status.hpp"
 
+#include <diagnostic_updater/update_functions.hpp>
 #include <rclcpp/qos.hpp>
 #include <sensor_msgs/image_encodings.hpp>
+#include <diagnostic_updater/publisher.hpp>
 
 #include <sstream>
 #include <stdexcept>
@@ -90,9 +93,13 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
   // Prepare diagnostics
   auto hardware_id = declare_parameter<std::string>("hardware_id", "");
+  ok_range_ratio_ = declare_parameter<double>("ok_range_ratio", 0.1);
+  warn_range_ratio_ = declare_parameter<double>("warn_range_ratio", 0.2);
+  num_frames_transition_ = declare_parameter<int>("num_frames_transition", 3);
 
   diag_updater_ = std::make_shared<diagnostic_updater::Updater>(this);
   diag_updater_->setHardwareID(hardware_id.empty() ? "none" : hardware_id);
+
   camera_ = std::make_shared<V4l2CameraDevice>(device, use_v4l2_buffer_timestamps, timestamp_offset_duration);
 
   if (!camera_->open()) {
@@ -126,6 +133,22 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // Start capture thread
   capture_thread_ = std::thread{
     [this]() -> void {
+      if (!time_per_frame_) {
+        return;
+      }
+      auto target_frequency = static_cast<double>(time_per_frame_.value()[1]) / time_per_frame_.value()[0];
+      auto min_ok_frequency = target_frequency * (1.0 - ok_range_ratio_.value());
+      auto max_ok_frequency = target_frequency * (1.0 + ok_range_ratio_.value());
+      auto min_warn_frequency = target_frequency * (1.0 - warn_range_ratio_.value());
+      auto max_warn_frequency = target_frequency * (1.0 + warn_range_ratio_.value());
+      RateBoundStatus rate_bound_status(
+          RateBoundStatusParam(min_ok_frequency, max_ok_frequency),
+          RateBoundStatusParam(min_warn_frequency, max_warn_frequency),
+          static_cast<size_t>(num_frames_transition_));
+      this->diag_updater_->add(rate_bound_status);
+
+      diag_updater_->setPeriod(1./target_frequency);  // align diag rate and ideal topic rate
+
       while (rclcpp::ok() && !canceled_.load()) {
         RCLCPP_DEBUG(get_logger(), "Capture...");
         auto img = camera_->capture();
@@ -166,6 +189,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           image_pub_->publish(std::move(img));
           info_pub_->publish(std::move(ci));
         }
+        // Record the topic timestamp to monitor the interval diagnostics
+        rate_bound_status.tick(stamp);
       }
     }
   };
@@ -274,17 +299,17 @@ void V4L2Camera::createParameters()
   requestImageSize(image_size);
 
   // Time per frame
-  if (camera_->timePerFrameSupported()) {
-    auto tpf = camera_->getCurrentTimePerFrame();
-    auto time_per_frame_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
-    time_per_frame_descriptor.name = "time_per_frame";
-    time_per_frame_descriptor.description = "Desired period between successive frames in seconds";
-    time_per_frame_descriptor.additional_constraints =
-      "Length 2 array, with numerator and denominator";
-    auto time_per_frame = declare_parameter<TimePerFrame>(
+  auto tpf = camera_->getCurrentTimePerFrame();
+  auto time_per_frame_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
+  time_per_frame_descriptor.name = "time_per_frame";
+  time_per_frame_descriptor.description = "Desired period between successive frames in seconds";
+  time_per_frame_descriptor.additional_constraints =
+      "Length 2 array, with numerator(second) and denominator(frames)";
+  time_per_frame_ = declare_parameter<TimePerFrame>(
       "time_per_frame", {tpf.first, tpf.second},
       time_per_frame_descriptor);
-    requestTimePerFrame(time_per_frame);
+  if (camera_->timePerFrameSupported()) {
+    requestTimePerFrame(time_per_frame_.value());
   }
 
   // Control parameters
