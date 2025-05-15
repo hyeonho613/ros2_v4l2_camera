@@ -240,7 +240,7 @@ void V4l2CameraDevice::setTSCOffset()
   }
 }
 
-Image::UniquePtr V4l2CameraDevice::capture()
+std::tuple<Image::UniquePtr, bool> V4l2CameraDevice::capture()
 {
   auto buf = v4l2_buffer{};
   rclcpp::Time buf_stamp;
@@ -254,7 +254,7 @@ Image::UniquePtr V4l2CameraDevice::capture()
       rclcpp::get_logger("v4l2_camera"),
       "Error dequeueing buffer: %s (%s)", strerror(errno),
       std::to_string(errno).c_str());
-    return nullptr;
+    return {nullptr, true};
   }
 
   if (use_v4l2_buffer_timestamps_) {
@@ -276,13 +276,16 @@ Image::UniquePtr V4l2CameraDevice::capture()
   img->data.resize(cur_data_format_.imageByteSize);
   std::copy(buffer.start, buffer.start + img->data.size(), img->data.begin());
 
+  // Check whether V4L2_BUF_FLAG_ERROR is set in v4l2_buffer.flags
+  bool is_v4l2_buffer_flag_error_detected = (buf.flags & V4L2_BUF_FLAG_ERROR);
+
   // Requeue buffer to be reused for new captures
   if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf)) {
     RCLCPP_ERROR(
       rclcpp::get_logger("v4l2_camera"),
       "Error re-queueing buffer: %s (%s)", strerror(errno),
       std::to_string(errno).c_str());
-    return nullptr;
+    return {nullptr, is_v4l2_buffer_flag_error_detected};
   }
 
   // Fill in remaining image information
@@ -300,7 +303,7 @@ Image::UniquePtr V4l2CameraDevice::capture()
     RCLCPP_WARN(rclcpp::get_logger("v4l2_camera"), "Current pixel format is not supported yet");
   }
 
-  return img;
+  return std::make_tuple(std::move(img), is_v4l2_buffer_flag_error_detected);
 }
 
 int32_t V4l2CameraDevice::getControlValue(uint32_t id)

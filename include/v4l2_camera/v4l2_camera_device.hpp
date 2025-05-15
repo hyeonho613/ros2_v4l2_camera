@@ -86,7 +86,7 @@ public:
 
   void setTSCOffset();
 
-  sensor_msgs::msg::Image::UniquePtr capture();
+  std::tuple<sensor_msgs::msg::Image::UniquePtr, bool> capture();
 
 private:
   /// Image buffer

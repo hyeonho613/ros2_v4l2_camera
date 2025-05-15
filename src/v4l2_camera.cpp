@@ -149,9 +149,25 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
       diag_updater_->setPeriod(1./target_frequency);  // align diag rate and ideal topic rate
 
+      bool is_v4l2_buffer_flag_error_detected = true;
+      auto buffer_flag_check_diag =
+          [&is_v4l2_buffer_flag_error_detected](
+              diagnostic_updater::DiagnosticStatusWrapper &stat) {
+            if (is_v4l2_buffer_flag_error_detected) {
+              stat.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN,
+                           "data might have been corrupted");
+            } else {
+              stat.summary(diagnostic_msgs::msg::DiagnosticStatus::OK,
+                           "data is dequeued successfully");
+            }
+          };
+
+      this->diag_updater_->add("buffer flag check", buffer_flag_check_diag);
+
       while (rclcpp::ok() && !canceled_.load()) {
         RCLCPP_DEBUG(get_logger(), "Capture...");
-        auto img = camera_->capture();
+        sensor_msgs::msg::Image::UniquePtr img;
+        std::tie(img, is_v4l2_buffer_flag_error_detected) = camera_->capture();
         if (img == nullptr) {
           // Failed capturing image, assume it is temporarily and continue a bit later
           std::this_thread::sleep_for(std::chrono::milliseconds(10));
