@@ -63,28 +63,28 @@ private:
   {
     Stale()
         : StateBase(diagnostic_msgs::msg::DiagnosticStatus::STALE,
-                    "topic has not been received yet.") {}
+                    "Topic has not been received yet") {}
   };
 
   struct Ok : public StateBase
   {
     Ok()
         : StateBase(diagnostic_msgs::msg::DiagnosticStatus::OK,
-                    "rate is reasonable.") {}
+                    "Rate is reasonable") {}
   };
 
   struct Warn : public StateBase
   {
     Warn()
         : StateBase(diagnostic_msgs::msg::DiagnosticStatus::WARN,
-                    "rate is within warning range.") {}
+                    "Rate is within warning range") {}
   };
 
   struct Error : public StateBase
   {
     Error()
         : StateBase(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
-                    "rate is out of valid range.") {}
+                    "Rate is out of valid range") {}
   };
 
   using StateHolder = std::variant<Stale, Ok, Warn, Error>;
@@ -149,9 +149,6 @@ private:
 
     // If the classify result is same as previous one, count the number of observation
     // Otherwise, update candidate
-    std::cerr << "candidate_state_: " << candidate_state_.index() << ", "
-              << "frame_result: " << frame_result.index() << ", "
-              << "current_state_: " << current_state_.index() << std::endl;
     if (candidate_state_.index() == frame_result.index()) {  // if result has the same status as candidate
       std::visit([](auto& s){
         s.num_observation += 1;

@@ -24,6 +24,7 @@
 #include <stdexcept>
 #include <string>
 #include <memory>
+#include <tuple>
 #include <utility>
 #include <vector>
 #include <algorithm>
@@ -42,6 +43,52 @@ using namespace std::chrono_literals;
 
 namespace v4l2_camera
 {
+
+static void
+diagnoseV4l2BufferFlag(diagnostic_updater::DiagnosticStatusWrapper &stat,
+                       const bool &is_v4l2_buffer_flag_error_detected)
+{
+  if (is_v4l2_buffer_flag_error_detected) {
+    stat.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN,
+                 "Data might have been corrupted");
+  } else {
+    stat.summary(diagnostic_msgs::msg::DiagnosticStatus::OK,
+                 "Data is dequeued successfully");
+  }
+}  // static void DiagnoseV4l2BufferFlag
+
+static void diagnoseStreamLiveness(
+    diagnostic_updater::DiagnosticStatusWrapper &stat,
+    const std::optional<uint32_t> &sequence, uint32_t &max_sequence_value,
+    const std::optional<timeval> &raw_timestamp, int64_t max_timestamp_value)
+{
+  if (!sequence || !raw_timestamp) {
+    stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
+                 "Failed to dequeue/enqueue v4l2_buffer");
+    return;
+  }
+
+  int64_t raw_timestamp_value = static_cast<int64_t>(raw_timestamp.value().tv_sec) * 1e9
+                                + static_cast<int64_t>(raw_timestamp.value().tv_usec) * 1e3;
+  if (sequence <= max_sequence_value) {
+    // sequence should increase monotonically
+    stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
+                 "Invalid sequence value is detected");
+  } else if (raw_timestamp_value <= max_timestamp_value) {
+    // raw timestamp should also increase monotonically
+    stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
+                 "Invalid timestamp value is detected");
+  } else {
+    stat.summary(diagnostic_msgs::msg::DiagnosticStatus::OK,
+                 "Sequence and timestamp value are valid");
+    max_sequence_value = sequence.value();
+    max_timestamp_value = raw_timestamp_value;
+  }
+
+  stat.addf("sequence", "observed=%u, current_max=%u", sequence, max_sequence_value);
+  stat.addf("raw_timestamp", "observed=%lu, current_max=%lu",
+            raw_timestamp_value, max_timestamp_value);
+}  // static void diagnoseStreamLiveness
 
 V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 : rclcpp::Node{"v4l2_camera", options},
@@ -136,6 +183,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       if (!time_per_frame_) {
         return;
       }
+
+      // Setup diagnostics
       auto target_frequency = static_cast<double>(time_per_frame_.value()[1]) / time_per_frame_.value()[0];
       auto min_ok_frequency = target_frequency * (1.0 - ok_range_ratio_.value());
       auto max_ok_frequency = target_frequency * (1.0 + ok_range_ratio_.value());
@@ -144,63 +193,31 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       RateBoundStatus rate_bound_status(
           RateBoundStatusParam(min_ok_frequency, max_ok_frequency),
           RateBoundStatusParam(min_warn_frequency, max_warn_frequency),
-          static_cast<size_t>(num_frames_transition_));
+          static_cast<size_t>(num_frames_transition_),
+          "rate bound check");
       this->diag_updater_->add(rate_bound_status);
 
       diag_updater_->setPeriod(1./target_frequency);  // align diag rate and ideal topic rate
 
       bool is_v4l2_buffer_flag_error_detected = true;
-      auto buffer_flag_check_diag =
-          [&is_v4l2_buffer_flag_error_detected](
-              diagnostic_updater::DiagnosticStatusWrapper &stat) {
-            if (is_v4l2_buffer_flag_error_detected) {
-              stat.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN,
-                           "data might have been corrupted");
-            } else {
-              stat.summary(diagnostic_msgs::msg::DiagnosticStatus::OK,
-                           "data is dequeued successfully");
-            }
-          };
+      diagnostic_updater::FunctionDiagnosticTask buffer_flag_check_diag(
+          "buffer flag check", std::bind(&diagnoseV4l2BufferFlag, std::placeholders::_1,
+                                         std::cref(is_v4l2_buffer_flag_error_detected)));
 
-      this->diag_updater_->add("buffer flag check", buffer_flag_check_diag);
+      this->diag_updater_->add(buffer_flag_check_diag);
 
       std::optional<uint32_t> sequence = 0;
       uint32_t max_sequence_value = 0;
       std::optional<timeval> raw_timestamp{};
       int64_t max_timestamp_value = 0;
-      auto stream_liveness_check_diag =
-          [&sequence, &max_sequence_value, &raw_timestamp, &max_timestamp_value] (
-              diagnostic_updater::DiagnosticStatusWrapper &stat) {
-            if (!sequence || !raw_timestamp) {
-              stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
-                           "failed to dequeue/enqueue v4l2_buffer");
-              return;
-            }
+      diagnostic_updater::FunctionDiagnosticTask stream_liveness_check_diag(
+          "stream liveness check", std::bind(&diagnoseStreamLiveness, std::placeholders::_1,
+                                             std::cref(sequence), std::ref(max_sequence_value),
+                                             std::cref(raw_timestamp), std::ref(max_timestamp_value)));
 
-            int64_t raw_timestamp_value = static_cast<int64_t>(raw_timestamp.value().tv_sec) * 1e9
-                                          + static_cast<int64_t>(raw_timestamp.value().tv_usec) * 1e3;
-            if (sequence <= max_sequence_value) {
-              // sequence should increase monotonically
-              stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
-                           "Invalid sequence value is detected");
-            } else if (raw_timestamp_value <= max_timestamp_value) {
-              // raw timestamp should also increase monotonically
-              stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
-                           "Invalid timestamp value is detected");
-            } else {
-              stat.summary(diagnostic_msgs::msg::DiagnosticStatus::OK,
-                           "Valid sequence and timestamp value.");
-              max_sequence_value = sequence.value();
-              max_timestamp_value = raw_timestamp_value;
-            }
+      this->diag_updater_->add(stream_liveness_check_diag);
 
-            stat.addf("sequence", "observed=%u, current_max=%u", sequence, max_sequence_value);
-            stat.addf("raw_timestamp", "observed=%lu, current_max=%lu",
-                      raw_timestamp_value, max_timestamp_value);
-          };
-
-      this->diag_updater_->add("stream liveness check", stream_liveness_check_diag);
-
+      // Start capture loop
       while (rclcpp::ok() && !canceled_.load()) {
         RCLCPP_DEBUG(get_logger(), "Capture...");
         sensor_msgs::msg::Image::UniquePtr img;
