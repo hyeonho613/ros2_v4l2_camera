@@ -164,10 +164,47 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
       this->diag_updater_->add("buffer flag check", buffer_flag_check_diag);
 
+      std::optional<uint32_t> sequence = 0;
+      uint32_t max_sequence_value = 0;
+      std::optional<timeval> raw_timestamp{};
+      int64_t max_timestamp_value = 0;
+      auto stream_liveness_check_diag =
+          [&sequence, &max_sequence_value, &raw_timestamp, &max_timestamp_value] (
+              diagnostic_updater::DiagnosticStatusWrapper &stat) {
+            if (!sequence || !raw_timestamp) {
+              stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
+                           "failed to dequeue/enqueue v4l2_buffer");
+              return;
+            }
+
+            int64_t raw_timestamp_value = static_cast<int64_t>(raw_timestamp.value().tv_sec) * 1e9
+                                          + static_cast<int64_t>(raw_timestamp.value().tv_usec) * 1e3;
+            if (sequence <= max_sequence_value) {
+              // sequence should increase monotonically
+              stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
+                           "Invalid sequence value is detected");
+            } else if (raw_timestamp_value <= max_timestamp_value) {
+              // raw timestamp should also increase monotonically
+              stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
+                           "Invalid timestamp value is detected");
+            } else {
+              stat.summary(diagnostic_msgs::msg::DiagnosticStatus::OK,
+                           "Valid sequence and timestamp value.");
+              max_sequence_value = sequence.value();
+              max_timestamp_value = raw_timestamp_value;
+            }
+
+            stat.addf("sequence", "observed=%u, current_max=%u", sequence, max_sequence_value);
+            stat.addf("raw_timestamp", "observed=%lu, current_max=%lu",
+                      raw_timestamp_value, max_timestamp_value);
+          };
+
+      this->diag_updater_->add("stream liveness check", stream_liveness_check_diag);
+
       while (rclcpp::ok() && !canceled_.load()) {
         RCLCPP_DEBUG(get_logger(), "Capture...");
         sensor_msgs::msg::Image::UniquePtr img;
-        std::tie(img, is_v4l2_buffer_flag_error_detected) = camera_->capture();
+        std::tie(img, is_v4l2_buffer_flag_error_detected, sequence, raw_timestamp) = camera_->capture();
         if (img == nullptr) {
           // Failed capturing image, assume it is temporarily and continue a bit later
           std::this_thread::sleep_for(std::chrono::milliseconds(10));
