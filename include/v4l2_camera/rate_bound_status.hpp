@@ -19,6 +19,8 @@
 #include <diagnostic_updater/diagnostic_updater.hpp>
 #include <diagnostic_msgs/msg/diagnostic_status.hpp>
 
+#include <iomanip>
+#include <sstream>
 #include <type_traits>
 #include <variant>
 #include <optional>
@@ -166,13 +168,22 @@ private:
     }
 
     stat.summary(get_level(current_state_), get_msg(current_state_));
-    stat.addf("Criteria", "OK(%.2f, %.2f), WARN[%.2f, %.2f]",
-              ok_params_.min_frequency, ok_params_.max_frequency,
-              warn_params_.min_frequency, warn_params_.max_frequency);
 
-    stat.addf("Observation", "level=%hhu, freq=%.2f", get_level(frame_result), frequency_); // NOTE: keep this variable order or level may visualized with wrong value
-    stat.addf("Next state candidate", "level=%hhu (num observation=%d)",
-              get_level(candidate_state_), get_num_observation(candidate_state_));
+    std::stringstream ss;
+    ss << "observed=" << std::fixed << std::setprecision(2) << frequency_.value_or(0.0)
+       << ", level=" << get_level_string(get_level(frame_result));
+    stat.add("rate", ss.str());
+
+    ss.str("");  // reset contents;
+    ss << std::fixed << std::setprecision(2)
+       << "OK(" << ok_params_.min_frequency << ", " << ok_params_.max_frequency << "), "
+       << "WARN[" << warn_params_.min_frequency << ", " << warn_params_.max_frequency << "]";
+    stat.add("rate criteria", ss.str());
+
+    ss.str("");  // reset contents;
+    ss << "level=" << get_level_string(get_level(candidate_state_))
+       << " (num observation=" << get_num_observation(candidate_state_) << ")";
+    stat.add("rate state next candidate", ss.str());
   }
 
 protected:
@@ -198,6 +209,22 @@ protected:
   std::string get_msg(const StateHolder& state) {
     return std::visit([](const auto& s){return s.msg;}, state);
   }
+
+  std::string get_level_string(unsigned char level) {
+    switch(level) {
+      case diagnostic_msgs::msg::DiagnosticStatus::OK:
+        return "OK";
+      case diagnostic_msgs::msg::DiagnosticStatus::WARN:
+        return "WARN";
+      case diagnostic_msgs::msg::DiagnosticStatus::ERROR:
+        return "ERROR";
+      case diagnostic_msgs::msg::DiagnosticStatus::STALE:
+        return "STALE";
+      default:
+        return "UNDEFINED";
+    }
+  }
+
 };  // class RateBoundStatus
 
 }  // namespace v4l2_camera

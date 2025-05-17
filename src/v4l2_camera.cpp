@@ -44,10 +44,22 @@ using namespace std::chrono_literals;
 namespace v4l2_camera
 {
 
+static void diagnoseDeviceNodeExistence(diagnostic_updater::DiagnosticStatusWrapper &stat,
+                                        const std::string device_name,
+                                        std::mutex& mtx)
+{
+  std::lock_guard<std::mutex> lock(mtx);
+  stat.summaryf(
+      diagnostic_msgs::msg::DiagnosticStatus::ERROR,
+      "%s is unabailable", device_name.c_str());
+}
+
 static void
 diagnoseV4l2BufferFlag(diagnostic_updater::DiagnosticStatusWrapper &stat,
-                       const bool &is_v4l2_buffer_flag_error_detected)
+                       const bool &is_v4l2_buffer_flag_error_detected,
+                       std::mutex& mtx)
 {
+  std::lock_guard<std::mutex> lock(mtx);
   if (is_v4l2_buffer_flag_error_detected) {
     stat.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN,
                  "Data might have been corrupted");
@@ -60,8 +72,10 @@ diagnoseV4l2BufferFlag(diagnostic_updater::DiagnosticStatusWrapper &stat,
 static void diagnoseStreamLiveness(
     diagnostic_updater::DiagnosticStatusWrapper &stat,
     const std::optional<uint32_t> &sequence, uint32_t &max_sequence_value,
-    const std::optional<timeval> &raw_timestamp, int64_t max_timestamp_value)
+    const std::optional<timeval> &raw_timestamp, int64_t &max_timestamp_value,
+    std::mutex& mtx)
 {
+  std::lock_guard<std::mutex> lock(mtx);
   if (!sequence || !raw_timestamp) {
     stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
                  "Failed to dequeue/enqueue v4l2_buffer");
@@ -146,19 +160,18 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
   diag_updater_ = std::make_shared<diagnostic_updater::Updater>(this);
   diag_updater_->setHardwareID(hardware_id.empty() ? "none" : hardware_id);
+  diag_composer_ = std::make_shared<diagnostic_updater::CompositeDiagnosticTask>(
+      hardware_id.empty() ? "_diagnostics" : hardware_id + "_diagnostics");
 
   camera_ = std::make_shared<V4l2CameraDevice>(device, use_v4l2_buffer_timestamps, timestamp_offset_duration);
 
   if (!camera_->open()) {
-    auto device_node_existance_diag =
-        [this, device](diagnostic_updater::DiagnosticStatusWrapper &stat) {
-          // pass a copy of `device` explicitly because diag_updater_ keep calling this function
-          // in different thread after exit this constructor
-          stat.summaryf(
-              diagnostic_msgs::msg::DiagnosticStatus::ERROR,
-              "%s is unabailable", device.c_str());
-    };
-    this->diag_updater_->add("device node existence", device_node_existance_diag);
+    device_node_existence_diag_ = std::make_shared<diagnostic_updater::FunctionDiagnosticTask>(
+        "device node existence", std::bind(&diagnoseDeviceNodeExistence, std::placeholders::_1,
+                                           device, std::ref(lock_)));
+
+    diag_composer_->addTask(device_node_existence_diag_.get());
+    this->diag_updater_->add(*diag_composer_);
     this->diag_updater_->force_update();
     return;
   }
@@ -195,16 +208,17 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           RateBoundStatusParam(min_warn_frequency, max_warn_frequency),
           static_cast<size_t>(num_frames_transition_),
           "rate bound check");
-      this->diag_updater_->add(rate_bound_status);
+      diag_composer_->addTask(&rate_bound_status);
 
       diag_updater_->setPeriod(1./target_frequency);  // align diag rate and ideal topic rate
 
       bool is_v4l2_buffer_flag_error_detected = true;
       diagnostic_updater::FunctionDiagnosticTask buffer_flag_check_diag(
           "buffer flag check", std::bind(&diagnoseV4l2BufferFlag, std::placeholders::_1,
-                                         std::cref(is_v4l2_buffer_flag_error_detected)));
+                                         std::cref(is_v4l2_buffer_flag_error_detected),
+                                         std::ref(lock_)));
 
-      this->diag_updater_->add(buffer_flag_check_diag);
+      diag_composer_->addTask(&buffer_flag_check_diag);
 
       std::optional<uint32_t> sequence = 0;
       uint32_t max_sequence_value = 0;
@@ -213,15 +227,20 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       diagnostic_updater::FunctionDiagnosticTask stream_liveness_check_diag(
           "stream liveness check", std::bind(&diagnoseStreamLiveness, std::placeholders::_1,
                                              std::cref(sequence), std::ref(max_sequence_value),
-                                             std::cref(raw_timestamp), std::ref(max_timestamp_value)));
+                                             std::cref(raw_timestamp), std::ref(max_timestamp_value),
+                                             std::ref(lock_)));
 
-      this->diag_updater_->add(stream_liveness_check_diag);
+      diag_composer_->addTask(&stream_liveness_check_diag);
+      this->diag_updater_->add(*diag_composer_);
 
       // Start capture loop
       while (rclcpp::ok() && !canceled_.load()) {
         RCLCPP_DEBUG(get_logger(), "Capture...");
         sensor_msgs::msg::Image::UniquePtr img;
-        std::tie(img, is_v4l2_buffer_flag_error_detected, sequence, raw_timestamp) = camera_->capture();
+        {
+          std::lock_guard<std::mutex> lock(lock_);
+          std::tie(img, is_v4l2_buffer_flag_error_detected, sequence, raw_timestamp) = camera_->capture();
+        }
         if (img == nullptr) {
           // Failed capturing image, assume it is temporarily and continue a bit later
           std::this_thread::sleep_for(std::chrono::milliseconds(10));

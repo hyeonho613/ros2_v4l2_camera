@@ -31,6 +31,8 @@
 #include <map>
 #include <vector>
 #include <optional>
+#include <mutex>
+
 
 #include "v4l2_camera/visibility_control.h"
 
@@ -123,10 +125,18 @@ private:
   bool use_image_transport_;
 
   std::shared_ptr<diagnostic_updater::Updater> diag_updater_;
+  std::shared_ptr<diagnostic_updater::CompositeDiagnosticTask> diag_composer_;
+
+  // To keep publishing diagnostics even after the constuctor of V4L2Camera class fail,
+  // this FunctionDiagnosticTask should be declared as a class member due to lifetime
+  std::shared_ptr<diagnostic_updater::FunctionDiagnosticTask> device_node_existence_diag_;
+
   std::optional<TimePerFrame> time_per_frame_;
   std::optional<double> ok_range_ratio_;
   std::optional<double> warn_range_ratio_;
   int num_frames_transition_;
+
+  std::mutex lock_;
 
 #ifdef ENABLE_CUDA
   // Memory region to communicate with GPU
