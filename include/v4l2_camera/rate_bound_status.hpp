@@ -129,7 +129,7 @@ private:
   /**
    * \brief function called every update
    */
-  virtual void run(diagnostic_updater::DiagnosticStatusWrapper& stat)
+  void run(diagnostic_updater::DiagnosticStatusWrapper& stat) override
   {
     std::unique_lock<std::mutex> lock(lock_);
 
