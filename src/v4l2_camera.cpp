@@ -203,10 +203,9 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       auto max_ok_frequency = target_frequency * (1.0 + ok_range_ratio_.value());
       auto min_warn_frequency = target_frequency * (1.0 - warn_range_ratio_.value());
       auto max_warn_frequency = target_frequency * (1.0 + warn_range_ratio_.value());
-      RateBoundStatus rate_bound_status(
-          RateBoundStatusParam(min_ok_frequency, max_ok_frequency),
-          RateBoundStatusParam(min_warn_frequency, max_warn_frequency),
-          static_cast<size_t>(num_frames_transition_),
+      rate_bound_status::RateBoundStatus rate_bound_status(
+          rate_bound_status::RateBoundStatusParam(min_ok_frequency, max_ok_frequency),
+          rate_bound_status::RateBoundStatusParam(min_warn_frequency, max_warn_frequency),
           "rate bound check");
       diag_composer_->addTask(&rate_bound_status);
 

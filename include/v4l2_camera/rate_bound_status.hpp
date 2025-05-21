@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef V4L2_CAMERA__RATE_BOUND_STATUS_HPP_
-#define V4L2_CAMERA__RATE_BOUND_STATUS_HPP_
+#ifndef RATE_BOUND_STATUS_HPP_
+#define RATE_BOUND_STATUS_HPP_
 
 #include <diagnostic_updater/diagnostic_updater.hpp>
 #include <diagnostic_msgs/msg/diagnostic_status.hpp>
@@ -24,7 +24,7 @@
 #include <optional>
 #include <mutex>
 
-namespace v4l2_camera
+namespace rate_bound_status
 {
 /**
  * \brief A structure that holds the constructor parameters for the
@@ -237,6 +237,6 @@ protected:
 
 };  // class RateBoundStatus
 
-}  // namespace v4l2_camera
+}  // namespace rate_bound_status
 
-#endif  // V4L2_CAMERA__RATE_BOUND_STATUS_HPP_
+#endif  // RATE_BOUND_STATUS_HPP_
