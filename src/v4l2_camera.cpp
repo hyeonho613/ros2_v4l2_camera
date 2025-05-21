@@ -113,9 +113,9 @@ static void diagnoseStreamLiveness(
     max_timestamp_value = raw_timestamp_value;
   }
 
-  stat.addf("sequence", "observed=%u, current_max=%u", sequence, max_sequence_value);
-  stat.addf("raw_timestamp", "observed=%lu, current_max=%lu",
-            raw_timestamp_value, max_timestamp_value);
+  stat.addf("Sequence", "%u", sequence);
+  stat.addf("Raw timestamp", "%lu", raw_timestamp_value);
+
 }  // static void diagnoseStreamLiveness
 
 V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)

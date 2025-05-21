@@ -203,7 +203,7 @@ private:
 
     std::stringstream ss;
     ss << std::fixed << std::setprecision(2) << frequency_.value_or(0.0);
-    stat.add("Image publish rate", ss.str());
+    stat.add("Publish rate", ss.str());
 
     ss.str("");  // reset contents
     ss << get_level_string(get_level(frame_result));
@@ -224,6 +224,14 @@ private:
     ss.str("");  // reset contents
     ss << std::fixed << std::setprecision(2) << warn_params_.max_frequency;
     stat.add("Maximum WARN rate threshold", ss.str());
+
+    ss.str("");  // reset contents
+    ss << get_num_observation(candidate_state_);
+    stat.add("Observed frames", ss.str());
+
+    ss.str("");  // reset contents
+    ss << num_frame_transition_;
+    stat.add("Observed frames transition threshold", ss.str());
   }
 
 protected:
