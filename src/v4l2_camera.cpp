@@ -295,8 +295,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           image_pub_->publish(std::move(img));
           info_pub_->publish(std::move(ci));
         }
-        // Record the topic timestamp to monitor the interval diagnostics
-        rate_bound_status.tick(stamp);
+        // Record the current timestamp to monitor the interval diagnostics
+        rate_bound_status.tick();
       }
     }
   };

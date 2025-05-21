@@ -24,6 +24,7 @@
 #include <optional>
 #include <mutex>
 #include <stdexcept>
+#include <chrono>
 
 namespace custom_diagnostic_tasks
 {
@@ -131,30 +132,29 @@ private:
   }
 
   /**
-   * \brief Signals an event.
+   * \brief Calculate the frequency of how much this function is called
    *
-   * \param t The timestamp of the event that will be used in computing
-   * intervals.
    */
-  void tick(double stamp)
+  void tick()
   {
     std::unique_lock<std::mutex> lock(lock_);
+    double stamp = std::chrono::duration<double>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+
     if (!previous_frame_timestamp_) {
-      previous_frame_timestamp_ = rclcpp::Clock().now().seconds();
+      previous_frame_timestamp_ = stamp;
     }
 
-    if (stamp == 0) {
+    double delta = stamp - previous_frame_timestamp_.value();
+    if (delta == 0) {
       zero_seen_ = true;
     } else {
       zero_seen_ = false;
-      double delta = stamp - previous_frame_timestamp_.value();
       frequency_ = (delta < 10 * std::numeric_limits<double>::epsilon()) ?
                    std::numeric_limits<double>::infinity() : 1. / delta;
     }
     previous_frame_timestamp_ = stamp;
   }
-
-  void tick(const rclcpp::Time& t) {tick(t.seconds());}
 
   /**
    * \brief function called every update
