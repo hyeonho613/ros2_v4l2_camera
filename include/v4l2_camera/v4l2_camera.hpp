@@ -136,7 +136,7 @@ private:
   std::optional<double> max_ok_rate_;
   std::optional<double> min_warn_rate_;
   std::optional<double> max_warn_rate_;
-  int num_frames_transition_;
+  int observed_frames_transition_;
 
   std::mutex lock_;
 

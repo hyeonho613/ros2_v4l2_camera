@@ -172,7 +172,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   max_ok_rate_ = declare_parameter<double>("max_ok_rate", 11.0);
   min_warn_rate_ = declare_parameter<double>("min_warn_rate", 8.0);
   max_warn_rate_ = declare_parameter<double>("max_warn_rate", 12.0);
-  num_frames_transition_ = declare_parameter<int>("num_frames_transition", 3);
+  observed_frames_transition_ = declare_parameter<int>("observed_frames_transition", 3);
 
   diag_updater_ = std::make_shared<diagnostic_updater::Updater>(this);
   diag_updater_->setHardwareID(hardware_id.empty() ? "none" : hardware_id);
@@ -222,7 +222,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       custom_diagnostic_tasks::RateBoundStatus rate_bound_status(
           custom_diagnostic_tasks::RateBoundStatusParam(min_ok_rate_.value(), max_ok_rate_.value()),
           custom_diagnostic_tasks::RateBoundStatusParam(min_warn_rate_.value(), max_warn_rate_.value()),
-          static_cast<size_t>(num_frames_transition_), true,
+          static_cast<size_t>(observed_frames_transition_), true,
           "rate bound check");
       diag_composer_->addTask(&rate_bound_status);
 
