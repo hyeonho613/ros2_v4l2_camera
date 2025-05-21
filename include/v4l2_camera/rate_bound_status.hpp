@@ -91,9 +91,20 @@ private:
   using StateHolder = std::variant<Stale, Ok, Warn, Error>;
 
  public:
+  /**
+   * \brief Constructs RateBoundstatus, which inherits diagnostic_updater::DiagnosticTask.
+   *
+   * \param ok_params The pair of min/max frequency for the topic rate to be recognized as "OK".
+   * \param warn_params The pair of min/max frequency for the topic rate to be recognized as "WARN".
+   * \param num_frame_transition The number of the successive observations for the status
+   * transition. E.g., the status will not be changed from OK to WARN until successive
+   * `num_frame_transition` WARNs are observed.
+   * \param name The arbitral string to be assigned for this diagnostic task.
+   * This name will not be exposed in the actual published topics.
+   */
   RateBoundStatus(const RateBoundStatusParam& ok_params,
                   const RateBoundStatusParam& warn_params,
-                  const size_t num_frame_transition,
+                  const size_t num_frame_transition = 1,
                   std::string name = "rate bound check")
       : DiagnosticTask(name), ok_params_(ok_params), warn_params_(warn_params),
         num_frame_transition_(num_frame_transition), zero_seen_(false),
