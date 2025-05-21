@@ -168,8 +168,10 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
   // Prepare diagnostics
   auto hardware_id = declare_parameter<std::string>("hardware_id", "");
-  ok_range_ratio_ = declare_parameter<double>("ok_range_ratio", 0.1);
-  warn_range_ratio_ = declare_parameter<double>("warn_range_ratio", 0.2);
+  min_ok_rate_ = declare_parameter<double>("min_ok_rate", 9.0);
+  max_ok_rate_ = declare_parameter<double>("max_ok_rate", 11.0);
+  min_warn_rate_ = declare_parameter<double>("min_warn_rate", 8.0);
+  max_warn_rate_ = declare_parameter<double>("max_warn_rate", 12.0);
   num_frames_transition_ = declare_parameter<int>("num_frames_transition", 3);
 
   diag_updater_ = std::make_shared<diagnostic_updater::Updater>(this);
@@ -212,23 +214,19 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // Start capture thread
   capture_thread_ = std::thread{
     [this]() -> void {
-      if (!time_per_frame_) {
+      if (!time_per_frame_ || !min_ok_rate_ || !max_ok_rate_ || !min_warn_rate_ || !max_warn_rate_) {
         return;
       }
 
       // Setup diagnostics
-      auto target_frequency = static_cast<double>(time_per_frame_.value()[1]) / time_per_frame_.value()[0];
-      auto min_ok_frequency = target_frequency * (1.0 - ok_range_ratio_.value());
-      auto max_ok_frequency = target_frequency * (1.0 + ok_range_ratio_.value());
-      auto min_warn_frequency = target_frequency * (1.0 - warn_range_ratio_.value());
-      auto max_warn_frequency = target_frequency * (1.0 + warn_range_ratio_.value());
       rate_bound_status::RateBoundStatus rate_bound_status(
-          rate_bound_status::RateBoundStatusParam(min_ok_frequency, max_ok_frequency),
-          rate_bound_status::RateBoundStatusParam(min_warn_frequency, max_warn_frequency),
+          rate_bound_status::RateBoundStatusParam(min_ok_rate_.value(), max_ok_rate_.value()),
+          rate_bound_status::RateBoundStatusParam(min_warn_rate_.value(), max_warn_rate_.value()),
           static_cast<size_t>(num_frames_transition_), true,
           "rate bound check");
       diag_composer_->addTask(&rate_bound_status);
 
+      auto target_frequency = static_cast<double>(time_per_frame_.value()[1]) / time_per_frame_.value()[0];
       diag_updater_->setPeriod(1./target_frequency);  // align diag rate and ideal topic rate
 
       bool is_v4l2_buffer_flag_error_detected = true;

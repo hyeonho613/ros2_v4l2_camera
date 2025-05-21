@@ -132,8 +132,10 @@ private:
   std::shared_ptr<diagnostic_updater::FunctionDiagnosticTask> device_node_existence_diag_;
 
   std::optional<TimePerFrame> time_per_frame_;
-  std::optional<double> ok_range_ratio_;
-  std::optional<double> warn_range_ratio_;
+  std::optional<double> min_ok_rate_;
+  std::optional<double> max_ok_rate_;
+  std::optional<double> min_warn_rate_;
+  std::optional<double> max_warn_rate_;
   int num_frames_transition_;
 
   std::mutex lock_;
