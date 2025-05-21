@@ -54,7 +54,7 @@ private:
   struct StateBase
   {
     StateBase(const unsigned char lv, const std::string m)
-        : level(lv), num_observation(0), msg(m) {}
+        : level(lv), num_observation(1), msg(m) {}
 
     unsigned char level;
     size_t num_observation;
@@ -101,15 +101,20 @@ private:
    * \param num_frame_transition The number of the successive observations for the status
    * transition. E.g., the status will not be changed from OK to WARN until successive
    * `num_frame_transition` WARNs are observed.
+   * \param immediate_error_report If true (default), errors related to the rate bounds will be
+   * reported immediately once it is observed; otherwise, hysteresis manner using
+   * `num_frame_transition` will be adopted
    * \param name The arbitral string to be assigned for this diagnostic task.
    * This name will not be exposed in the actual published topics.
    */
   RateBoundStatus(const RateBoundStatusParam& ok_params,
                   const RateBoundStatusParam& warn_params,
                   const size_t num_frame_transition = 1,
+                  const bool immediate_error_report = true,
                   std::string name = "rate bound check")
       : DiagnosticTask(name), ok_params_(ok_params), warn_params_(warn_params),
-        num_frame_transition_(num_frame_transition), zero_seen_(false),
+        num_frame_transition_(num_frame_transition),
+        immediate_error_report_(immediate_error_report), zero_seen_(false),
         candidate_state_(Stale{}), current_state_(Stale{})
   {
     if (num_frame_transition < 1) {
@@ -183,11 +188,14 @@ private:
       candidate_state_ = frame_result;
     }
 
-    // Update the current state if the same state is observed multiple times
-    if (get_num_observation(candidate_state_) >= num_frame_transition_) {
+    // Update the current state if
+    // - immediate error report is required and the observed state is error
+    // - Or the same state is observed multiple times
+    if ((immediate_error_report_ && std::holds_alternative<Error>(candidate_state_)) ||
+        (get_num_observation(candidate_state_) >= num_frame_transition_)) {
       current_state_ = candidate_state_;
       std::visit([](auto& s) {
-        s.num_observation = 0;
+        s.num_observation = 1;
       }, candidate_state_);
     }
 
@@ -214,6 +222,7 @@ protected:
   RateBoundStatusParam ok_params_;
   RateBoundStatusParam warn_params_;
   size_t num_frame_transition_;
+  bool immediate_error_report_;
   bool zero_seen_;
   std::optional<double> frequency_;
   std::optional<double> previous_frame_timestamp_;

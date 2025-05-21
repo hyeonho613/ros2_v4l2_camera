@@ -206,6 +206,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       rate_bound_status::RateBoundStatus rate_bound_status(
           rate_bound_status::RateBoundStatusParam(min_ok_frequency, max_ok_frequency),
           rate_bound_status::RateBoundStatusParam(min_warn_frequency, max_warn_frequency),
+          static_cast<size_t>(num_frames_transition_), true,
           "rate bound check");
       diag_composer_->addTask(&rate_bound_status);
 
