@@ -46,12 +46,21 @@ namespace v4l2_camera
 
 static void diagnoseDeviceNodeExistence(diagnostic_updater::DiagnosticStatusWrapper &stat,
                                         const std::string device_name,
+                                        bool node_exist,
                                         std::mutex& mtx)
 {
   std::lock_guard<std::mutex> lock(mtx);
-  stat.summaryf(
-      diagnostic_msgs::msg::DiagnosticStatus::ERROR,
-      "%s is unabailable", device_name.c_str());
+  if (node_exist) {
+    stat.summaryf(
+        diagnostic_msgs::msg::DiagnosticStatus::OK,
+        "%s is available", device_name.c_str());
+    stat.add("Device node existence", "OK");
+  } else {
+    stat.summaryf(
+        diagnostic_msgs::msg::DiagnosticStatus::ERROR,
+        "%s is unavailable", device_name.c_str());
+    stat.add("Device node existence", "ERROR");
+  }
 }
 
 static void
@@ -63,9 +72,11 @@ diagnoseV4l2BufferFlag(diagnostic_updater::DiagnosticStatusWrapper &stat,
   if (is_v4l2_buffer_flag_error_detected) {
     stat.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN,
                  "Data might have been corrupted");
+    stat.add("Buffer flag status", "WARN");
   } else {
     stat.summary(diagnostic_msgs::msg::DiagnosticStatus::OK,
                  "Data is dequeued successfully");
+    stat.add("Buffer flag status", "OK");
   }
 }  // static void DiagnoseV4l2BufferFlag
 
@@ -88,13 +99,16 @@ static void diagnoseStreamLiveness(
     // sequence should increase monotonically
     stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
                  "Invalid sequence value is detected");
+    stat.add("Stream liveness", "ERROR");
   } else if (raw_timestamp_value <= max_timestamp_value) {
     // raw timestamp should also increase monotonically
     stat.summary(diagnostic_msgs::msg::DiagnosticStatus::ERROR,
                  "Invalid timestamp value is detected");
+    stat.add("Stream liveness", "ERROR");
   } else {
     stat.summary(diagnostic_msgs::msg::DiagnosticStatus::OK,
                  "Sequence and timestamp value are valid");
+    stat.add("Stream liveness", "OK");
     max_sequence_value = sequence.value();
     max_timestamp_value = raw_timestamp_value;
   }
@@ -168,12 +182,17 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   if (!camera_->open()) {
     device_node_existence_diag_ = std::make_shared<diagnostic_updater::FunctionDiagnosticTask>(
         "device node existence", std::bind(&diagnoseDeviceNodeExistence, std::placeholders::_1,
-                                           device, std::ref(lock_)));
+                                           device, false, std::ref(lock_)));
 
     diag_composer_->addTask(device_node_existence_diag_.get());
     this->diag_updater_->add(*diag_composer_);
     this->diag_updater_->force_update();
     return;
+  } else {
+    device_node_existence_diag_ = std::make_shared<diagnostic_updater::FunctionDiagnosticTask>(
+        "device node existence", std::bind(&diagnoseDeviceNodeExistence, std::placeholders::_1,
+                                           device, true, std::ref(lock_)));
+    diag_composer_->addTask(device_node_existence_diag_.get());
   }
 
   cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());

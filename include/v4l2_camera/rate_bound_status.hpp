@@ -202,20 +202,28 @@ private:
     stat.summary(get_level(current_state_), get_msg(current_state_));
 
     std::stringstream ss;
-    ss << "observed=" << std::fixed << std::setprecision(2) << frequency_.value_or(0.0)
-       << ", level=" << get_level_string(get_level(frame_result));
-    stat.add("rate", ss.str());
+    ss << std::fixed << std::setprecision(2) << frequency_.value_or(0.0);
+    stat.add("Image publish rate", ss.str());
 
-    ss.str("");  // reset contents;
-    ss << std::fixed << std::setprecision(2)
-       << "OK(" << ok_params_.min_frequency << ", " << ok_params_.max_frequency << "), "
-       << "WARN[" << warn_params_.min_frequency << ", " << warn_params_.max_frequency << "]";
-    stat.add("rate criteria", ss.str());
+    ss.str("");  // reset contents
+    ss << get_level_string(get_level(frame_result));
+    stat.add("Rate status", ss.str());
 
-    ss.str("");  // reset contents;
-    ss << "level=" << get_level_string(get_level(candidate_state_))
-       << " (num observation=" << get_num_observation(candidate_state_) << ")";
-    stat.add("rate state next candidate", ss.str());
+    ss.str("");  // reset contents
+    ss << std::fixed << std::setprecision(2) << ok_params_.min_frequency;
+    stat.add("Minimum OK rate threshold", ss.str());
+
+    ss.str("");  // reset contents
+    ss << std::fixed << std::setprecision(2) << ok_params_.max_frequency;
+    stat.add("Maximum OK rate threshold", ss.str());
+
+    ss.str("");  // reset contents
+    ss << std::fixed << std::setprecision(2) << warn_params_.min_frequency;
+    stat.add("Minimum WARN rate threshold", ss.str());
+
+    ss.str("");  // reset contents
+    ss << std::fixed << std::setprecision(2) << warn_params_.max_frequency;
+    stat.add("Maximum WARN rate threshold", ss.str());
   }
 
 protected:
