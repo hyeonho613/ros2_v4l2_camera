@@ -23,6 +23,7 @@
 #include <variant>
 #include <optional>
 #include <mutex>
+#include <stdexcept>
 
 namespace rate_bound_status
 {
@@ -96,6 +97,7 @@ private:
    *
    * \param ok_params The pair of min/max frequency for the topic rate to be recognized as "OK".
    * \param warn_params The pair of min/max frequency for the topic rate to be recognized as "WARN".
+   * These values should have a wider range than `ok_params`.
    * \param num_frame_transition The number of the successive observations for the status
    * transition. E.g., the status will not be changed from OK to WARN until successive
    * `num_frame_transition` WARNs are observed.
@@ -109,7 +111,19 @@ private:
       : DiagnosticTask(name), ok_params_(ok_params), warn_params_(warn_params),
         num_frame_transition_(num_frame_transition), zero_seen_(false),
         candidate_state_(Stale{}), current_state_(Stale{})
-  {}
+  {
+    if (num_frame_transition < 1) {
+      num_frame_transition_ = 1;
+    }
+
+    // Confirm `warn_params` surely has wider range than `ok_params`
+    if (!(warn_params_.min_frequency < ok_params_.min_frequency &&
+          ok_params_.max_frequency< warn_params_.max_frequency)) {
+      throw std::runtime_error(
+          "Invald range parameters were detected. warn_params should specify a range "
+          "that includes a range of ok_params.");
+    }
+  }
 
   /**
    * \brief Signals an event.
