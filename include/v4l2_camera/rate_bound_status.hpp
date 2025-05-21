@@ -15,15 +15,14 @@
 #ifndef V4L2_CAMERA__RATE_BOUND_STATUS_HPP_
 #define V4L2_CAMERA__RATE_BOUND_STATUS_HPP_
 
-#include <diagnostic_msgs/msg/detail/diagnostic_status__struct.hpp>
 #include <diagnostic_updater/diagnostic_updater.hpp>
 #include <diagnostic_msgs/msg/diagnostic_status.hpp>
 
 #include <iomanip>
 #include <sstream>
-#include <type_traits>
 #include <variant>
 #include <optional>
+#include <mutex>
 
 namespace v4l2_camera
 {
