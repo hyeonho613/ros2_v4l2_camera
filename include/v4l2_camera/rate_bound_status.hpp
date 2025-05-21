@@ -102,9 +102,9 @@ private:
    * transition. E.g., the status will not be changed from OK to WARN until successive
    * `num_frame_transition` WARNs are observed.
    * \param immediate_error_report If true (default), errors related to the rate bounds will be
-   * reported immediately once it is observed; otherwise, hysteresis manner using
+   * reported immediately once observed; otherwise, the hysteresis damping method using
    * `num_frame_transition` will be adopted
-   * \param name The arbitral string to be assigned for this diagnostic task.
+   * \param name The arbitrary string to be assigned for this diagnostic task.
    * This name will not be exposed in the actual published topics.
    */
   RateBoundStatus(const RateBoundStatusParam& ok_params,
@@ -125,7 +125,7 @@ private:
     if (!(warn_params_.min_frequency < ok_params_.min_frequency &&
           ok_params_.max_frequency< warn_params_.max_frequency)) {
       throw std::runtime_error(
-          "Invald range parameters were detected. warn_params should specify a range "
+          "Invalid range parameters were detected. warn_params should specify a range "
           "that includes a range of ok_params.");
     }
   }
@@ -148,7 +148,7 @@ private:
     } else {
       zero_seen_ = false;
       double delta = stamp - previous_frame_timestamp_.value();
-      frequency_ = (delta < 10*std::numeric_limits<double>::epsilon()) ?
+      frequency_ = (delta < 10 * std::numeric_limits<double>::epsilon()) ?
                    std::numeric_limits<double>::infinity() : 1. / delta;
     }
     previous_frame_timestamp_ = stamp;

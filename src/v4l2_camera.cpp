@@ -410,7 +410,7 @@ void V4L2Camera::createParameters()
   time_per_frame_descriptor.name = "time_per_frame";
   time_per_frame_descriptor.description = "Desired period between successive frames in seconds";
   time_per_frame_descriptor.additional_constraints =
-      "Length 2 array, with numerator(second) and denominator(frames)";
+      "Length 2 array, with numerator (second) and denominator (frames)";
   time_per_frame_ = declare_parameter<TimePerFrame>(
       "time_per_frame", {tpf.first, tpf.second},
       time_per_frame_descriptor);
