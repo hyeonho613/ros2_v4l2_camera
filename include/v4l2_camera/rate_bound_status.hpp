@@ -25,7 +25,7 @@
 #include <mutex>
 #include <stdexcept>
 
-namespace rate_bound_status
+namespace custom_diagnostic_tasks
 {
 /**
  * \brief A structure that holds the constructor parameters for the
@@ -276,6 +276,6 @@ protected:
 
 };  // class RateBoundStatus
 
-}  // namespace rate_bound_status
+}  // namespace custom_diagnostic_tasks
 
 #endif  // RATE_BOUND_STATUS_HPP_

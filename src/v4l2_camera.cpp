@@ -219,9 +219,9 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       }
 
       // Setup diagnostics
-      rate_bound_status::RateBoundStatus rate_bound_status(
-          rate_bound_status::RateBoundStatusParam(min_ok_rate_.value(), max_ok_rate_.value()),
-          rate_bound_status::RateBoundStatusParam(min_warn_rate_.value(), max_warn_rate_.value()),
+      custom_diagnostic_tasks::RateBoundStatus rate_bound_status(
+          custom_diagnostic_tasks::RateBoundStatusParam(min_ok_rate_.value(), max_ok_rate_.value()),
+          custom_diagnostic_tasks::RateBoundStatusParam(min_warn_rate_.value(), max_warn_rate_.value()),
           static_cast<size_t>(num_frames_transition_), true,
           "rate bound check");
       diag_composer_->addTask(&rate_bound_status);
