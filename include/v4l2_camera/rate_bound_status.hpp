@@ -58,10 +58,10 @@ private:
   struct StateBase
   {
     StateBase(const unsigned char lv, const std::string m)
-        : level(lv), num_observation(1), msg(m) {}
+        : level(lv), num_observations(1), msg(m) {}
 
     unsigned char level;
-    size_t num_observation;
+    size_t num_observations;
     std::string msg;
   };
 
@@ -181,7 +181,7 @@ private:
     // Otherwise, update candidate
     if (candidate_state_.index() == frame_result.index()) {  // if result has the same status as candidate
       std::visit([](auto& s){
-        s.num_observation += 1;
+        s.num_observations += 1;
       }, candidate_state_);
     } else {
       candidate_state_ = frame_result;
@@ -191,10 +191,10 @@ private:
     // - immediate error report is required and the observed state is error
     // - Or the same state is observed multiple times
     if ((immediate_error_report_ && std::holds_alternative<Error>(candidate_state_)) ||
-        (get_num_observation(candidate_state_) >= num_frame_transition_)) {
+        (get_num_observations(candidate_state_) >= num_frame_transition_)) {
       current_state_ = candidate_state_;
       std::visit([](auto& s) {
-        s.num_observation = 1;
+        s.num_observations = 1;
       }, candidate_state_);
     }
 
@@ -225,7 +225,7 @@ private:
     stat.add("Maximum WARN rate threshold", ss.str());
 
     ss.str("");  // reset contents
-    ss << get_num_observation(candidate_state_);
+    ss << get_num_observations(candidate_state_);
     stat.add("Observed frames", ss.str());
 
     ss.str("");  // reset contents
@@ -250,8 +250,8 @@ protected:
     return std::visit([](const auto& s){return s.level;}, state);
   }
 
-  static size_t get_num_observation(const StateHolder& state) {
-    return std::visit([](const auto& s){return s.num_observation;}, state);
+  static size_t get_num_observations(const StateHolder& state) {
+    return std::visit([](const auto& s){return s.num_observations;}, state);
   }
 
   static std::string get_msg(const StateHolder& state) {
