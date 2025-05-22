@@ -145,14 +145,10 @@ private:
         std::chrono::steady_clock::now().time_since_epoch()).count();
 
     if (!previous_frame_timestamp_) {
-      previous_frame_timestamp_ = stamp;
-    }
-
-    double delta = stamp - previous_frame_timestamp_.value();
-    if (delta == 0) {
       zero_seen_ = true;
     } else {
       zero_seen_ = false;
+      double delta = stamp - previous_frame_timestamp_.value();
       frequency_ = (delta < 10 * std::numeric_limits<double>::epsilon()) ?
                    std::numeric_limits<double>::infinity() : 1. / delta;
     }
