@@ -115,7 +115,7 @@ private:
                   const RateBoundStatusParam& warn_params,
                   const size_t num_frame_transition = 1,
                   const bool immediate_error_report = true,
-                  std::string name = "rate bound check")
+                  const std::string& name = "rate bound check")
       : DiagnosticTask(name), ok_params_(ok_params), warn_params_(warn_params),
         num_frame_transition_(num_frame_transition),
         immediate_error_report_(immediate_error_report), zero_seen_(false),
