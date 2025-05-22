@@ -246,19 +246,19 @@ protected:
   StateHolder candidate_state_;
   StateHolder current_state_;
 
-  unsigned char get_level(const StateHolder& state) {
+  static unsigned char get_level(const StateHolder& state) {
     return std::visit([](const auto& s){return s.level;}, state);
   }
 
-  size_t get_num_observation(const StateHolder& state) {
+  static size_t get_num_observation(const StateHolder& state) {
     return std::visit([](const auto& s){return s.num_observation;}, state);
   }
 
-  std::string get_msg(const StateHolder& state) {
+  static std::string get_msg(const StateHolder& state) {
     return std::visit([](const auto& s){return s.msg;}, state);
   }
 
-  std::string get_level_string(unsigned char level) {
+  static std::string get_level_string(unsigned char level) {
     switch(level) {
       case diagnostic_msgs::msg::DiagnosticStatus::OK:
         return "OK";
