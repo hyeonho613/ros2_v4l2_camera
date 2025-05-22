@@ -16,15 +16,18 @@
 #define RATE_BOUND_STATUS_HPP_
 
 #include <diagnostic_updater/diagnostic_updater.hpp>
+
 #include <diagnostic_msgs/msg/diagnostic_status.hpp>
 
-#include <iomanip>
-#include <sstream>
-#include <variant>
-#include <optional>
-#include <mutex>
-#include <stdexcept>
 #include <chrono>
+#include <iomanip>
+#include <limits>
+#include <mutex>
+#include <optional>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <variant>
 
 namespace custom_diagnostic_tasks
 {
@@ -123,8 +126,8 @@ private:
     }
 
     // Confirm `warn_params` surely has wider range than `ok_params`
-    if (!(warn_params_.min_frequency < ok_params_.min_frequency &&
-          ok_params_.max_frequency< warn_params_.max_frequency)) {
+    if (warn_params_.min_frequency >= ok_params_.min_frequency ||
+      ok_params_.max_frequency >= warn_params_.max_frequency) {
       throw std::runtime_error(
           "Invalid range parameters were detected. warn_params should specify a range "
           "that includes a range of ok_params.");
