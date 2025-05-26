@@ -220,6 +220,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
       // Setup diagnostics
       custom_diagnostic_tasks::RateBoundStatus rate_bound_status(
+          this,
           custom_diagnostic_tasks::RateBoundStatusParam(min_ok_rate_.value(), max_ok_rate_.value()),
           custom_diagnostic_tasks::RateBoundStatusParam(min_warn_rate_.value(), max_warn_rate_.value()),
           static_cast<size_t>(observed_frames_transition_), true,
