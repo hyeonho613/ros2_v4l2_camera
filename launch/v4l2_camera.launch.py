@@ -73,6 +73,12 @@ def launch_setup(context, *args, **kwargs):
                     "publish_rate": LaunchConfiguration("publish_rate"),
                     "use_v4l2_buffer_timestamps": LaunchConfiguration("use_v4l2_buffer_timestamps"),
                     "use_image_transport": LaunchConfiguration("use_image_transport"),
+                    "hardware_id": LaunchConfiguration("camera_name"),
+                    "min_ok_rate": LaunchConfiguration("min_ok_rate"),
+                    "max_ok_rate": LaunchConfiguration("max_ok_rate"),
+                    "min_warn_rate": LaunchConfiguration("min_warn_rate"),
+                    "max_warn_rate": LaunchConfiguration("max_warn_rate"),
+                    "observed_frames_transition": LaunchConfiguration("observed_frames_transition"),
                 },
             ],
             extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
@@ -134,6 +140,16 @@ def generate_launch_description():
                    'otherwise, will be the system time when the buffer is read')
     add_launch_arg('use_image_transport', 'true',
                    description='flag to launch image_transport node')
+    add_launch_arg('min_ok_rate', '9.0',
+                   description='Minimum frame rate to be considered as OK')
+    add_launch_arg('max_ok_rate', '11.0',
+                   description='Maximum frame rate to be considered as OK')
+    add_launch_arg('min_warn_rate', '8.0',
+                   description='Minimum frame rate to be considered as WARN')
+    add_launch_arg('max_warn_rate', '12.0',
+                   description='Maximum frame rate to be considered as WARN')
+    add_launch_arg('observed_frames_transition', '3',
+                   description='Number of frames to be observed before transition to the next state')
 
     return LaunchDescription(
         [
