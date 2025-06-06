@@ -74,7 +74,7 @@ def launch_setup(context, *args, **kwargs):
                     "publish_rate": LaunchConfiguration("publish_rate"),
                     "use_v4l2_buffer_timestamps": LaunchConfiguration("use_v4l2_buffer_timestamps"),
                     "use_image_transport": LaunchConfiguration("use_image_transport"),
-                    "hardware_id": LaunchConfiguration("camera_name"),
+                    "hardware_id": LaunchConfiguration("hardware_id"),
                 },
             ],
             extra_arguments=[{"use_intra_process_comms": LaunchConfiguration("use_intra_process")}],
