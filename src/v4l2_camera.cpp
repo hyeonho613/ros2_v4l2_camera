@@ -243,7 +243,17 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           "rate bound check");
       diag_composer_->addTask(&rate_bound_status);
 
-      auto target_frequency = static_cast<double>(time_per_frame_.value()[1]) / time_per_frame_.value()[0];
+      double target_frequency = publish_rate_;
+      if (target_frequency < 0) {
+        if (std::abs(time_per_frame_.value()[1]) < std::numeric_limits<double>::epsilon() * 1e2) {
+          // time_per_frame_ may be [0, 0] by default in some environment
+          // In that case, diagnostics will be publish at the rate around ok_rate
+          target_frequency = (min_ok_rate_.value() + max_ok_rate_.value()) / 2;
+        } else {
+          target_frequency =
+              static_cast<double>(time_per_frame_.value()[1]) / time_per_frame_.value()[0];
+        }
+      }
       diag_updater_->setPeriod(1./target_frequency);  // align diag rate and ideal topic rate
 
       bool is_v4l2_buffer_flag_error_detected = true;
