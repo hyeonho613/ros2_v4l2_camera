@@ -99,11 +99,11 @@ static void diagnoseStreamLiveness(
   auto is_error_condition = [&is_frame_updated](auto& lhs, auto& rhs){
     bool compare_result;
     if (is_frame_updated) {
-      // If frame is updated, lhs should truly greater than rhs,
-      // so error comdition will be the logical NOT.
+      // If frame is updated, LHS should be greater than RHS,
+      // so error condition will be the logical NOT.
       compare_result = (lhs <= rhs);
     } else {
-      // If frame is not updated yet, lhs and rhs value may the same
+      // If frame is not updated yet, LHS and RHS value may be the same
       compare_result = (lhs < rhs);
     }
     return compare_result;
@@ -246,8 +246,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       double target_frequency = publish_rate_;
       if (target_frequency < 0) {
         if (std::abs(time_per_frame_.value()[1]) < std::numeric_limits<double>::epsilon() * 1e2) {
-          // time_per_frame_ may be [0, 0] by default in some environment
-          // In that case, diagnostics will be publish at the rate around ok_rate
+          // time_per_frame_ may be [0, 0] by default in some environments
+          // In that case, diagnostics will be published at a rate between the min and max OK rate values
           target_frequency = (min_ok_rate_.value() + max_ok_rate_.value()) / 2;
         } else {
           target_frequency =
