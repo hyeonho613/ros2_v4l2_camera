@@ -171,7 +171,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   auto device_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
   device_descriptor.description = "Path to video device";
   device_descriptor.read_only = true;
-  auto device = declare_parameter<std::string>("video_device", "/dev/video2", device_descriptor);
+  auto device = declare_parameter<std::string>("video_device", "/dev/video2", device_descriptor); // JHH // Laptop: video2, Cart: video0
 
   auto use_v4l2_buffer_timestamps_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
   use_v4l2_buffer_timestamps_descriptor.description = "Use v4l2 buffer timestamps";
