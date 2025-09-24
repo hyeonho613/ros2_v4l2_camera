@@ -178,3 +178,5 @@ ros2 launch v4l2_camera v4l2_camera.launch.py \
   hardware_id:='/dev/video0' \
   use_sensor_data_qos:=True
 }
+
+디바이스 번호 바꾸기!
